@@ -673,15 +673,17 @@ def _augment_prompt_with_a2a(
     for config in a2a_agents:
         if config.endpoint in agent_cards:
             card = agent_cards[config.endpoint]
+            # Add explicit mapping between endpoint URL and agent card info
+            agents_text += f"\n<!-- A2A Agent ID (for a2a_ids field): {config.endpoint} -->\n"
             if isinstance(card, dict):
                 filtered = {
                     k: v
                     for k, v in card.items()
                     if k in {"description", "url", "skills"} and v is not None
                 }
-                agents_text += f"\n{json.dumps(filtered, indent=2)}\n"
+                agents_text += f"{json.dumps(filtered, indent=2)}\n"
             else:
-                agents_text += f"\n{card.model_dump_json(indent=2, exclude_none=True, include={'description', 'url', 'skills'})}\n"
+                agents_text += f"{card.model_dump_json(indent=2, exclude_none=True, include={'description', 'url', 'skills'})}\n"
 
     failed_agents = failed_agents or {}
     if failed_agents:
