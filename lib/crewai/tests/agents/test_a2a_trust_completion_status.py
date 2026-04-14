@@ -146,6 +146,29 @@ def test_trust_remote_completion_status_false_continues_conversation():
 
 
 @pytest.mark.skipif(not A2A_SDK_INSTALLED, reason="Requires a2a-sdk to be installed")
+def test_augment_prompt_includes_agent_id_comment():
+    """Verify that _augment_prompt_with_a2a includes A2A agent ID comment."""
+    from crewai.a2a.wrapper import _augment_prompt_with_a2a
+    from crewai.a2a.config import A2AConfig
+
+    a2a_config = A2AConfig(endpoint="http://test-agent.example.com")
+    
+    mock_card = MagicMock()
+    mock_card.model_dump_json.return_value = '{"name": "TestAgent", "url": "http://test-agent.example.com"}'
+    
+    agent_cards = {"http://test-agent.example.com": mock_card}
+    
+    augmented_prompt, _, _ = _augment_prompt_with_a2a(
+        a2a_agents=[a2a_config],
+        task_description="Test task",
+        agent_cards=agent_cards,
+    )
+    
+    # Verify that the prompt includes the A2A Agent ID comment
+    assert "<!-- A2A Agent ID (for a2a_ids field): http://test-agent.example.com -->" in augmented_prompt
+
+
+@pytest.mark.skipif(not A2A_SDK_INSTALLED, reason="Requires a2a-sdk to be installed")
 def test_default_trust_remote_completion_status_is_false():
     """Verify that default value of trust_remote_completion_status is False."""
     a2a_config = A2AConfig(
