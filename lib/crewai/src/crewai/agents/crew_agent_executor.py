@@ -796,7 +796,11 @@ class CrewAgentExecutor(BaseAgentExecutor):
             func_name = sanitize_tool_name(
                 func_info.get("name", "") or tool_call.get("name", "")
             )
-            func_args = func_info.get("arguments") or tool_call.get("input", {})
+            # Handle both OpenAI format (function.arguments) and Bedrock format (input)
+            # Bedrock uses "input" field instead of "function.arguments"
+            func_args = func_info.get("arguments")
+            if not func_args or func_args == "{}":
+                func_args = tool_call.get("input", {})
             return call_id, func_name, func_args
         return None
 
