@@ -32,11 +32,11 @@ def create_agent_response_model(agent_ids: tuple[str, ...]) -> type[BaseModel] |
     return create_model(
         "AgentResponse",
         a2a_ids=(
-            tuple[DynamicLiteral, ...],  # type: ignore[valid-type]
+            tuple[str, ...],
             Field(
                 default_factory=tuple,
                 max_length=len(agent_ids),
-                description="A2A agent IDs to delegate to.",
+                description="A2A agent IDs to delegate to. Use the agent endpoint URL or skill ID.",
             ),
         ),
         message=(

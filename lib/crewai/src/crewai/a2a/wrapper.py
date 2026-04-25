@@ -1012,11 +1012,52 @@ def _get_turn_context(
     return agent_branch, accepted_output_modes
 
 
+def _resolve_agent_id(
+    agent_id: str,
+    a2a_agents: list[A2AConfig | A2AClientConfig],
+    agent_cards: dict[str, Any] | None,
+) -> str:
+    """Resolve an A2A agent ID (endpoint URL or skill ID) to an endpoint URL.
+
+    Args:
+        agent_id: The ID provided by the LLM (endpoint URL or skill ID).
+        a2a_agents: List of configured A2A agents.
+        agent_cards: Dictionary mapping endpoints to fetched agent cards.
+
+    Returns:
+        The resolved endpoint URL.
+    """
+    # Direct endpoint match
+    for config in a2a_agents:
+        if config.endpoint == agent_id:
+            return agent_id
+
+    # Skill ID match via agent cards
+    if agent_cards:
+        for endpoint, card in agent_cards.items():
+            if isinstance(card, dict):
+                skills = card.get("skills", [])
+                for skill in skills:
+                    skill_id = skill.get("id") if isinstance(skill, dict) else getattr(skill, "id", None)
+                    if skill_id == agent_id:
+                        return endpoint
+            else:
+                skills = getattr(card, "skills", None)
+                if skills:
+                    for skill in skills:
+                        skill_id = skill.id if hasattr(skill, "id") else skill.get("id") if isinstance(skill, dict) else None
+                        if skill_id == agent_id:
+                            return endpoint
+
+    return agent_id
+
+
 def _prepare_delegation_context(
     self: Agent,
     agent_response: AgentResponseProtocol,
     task: Task,
     original_task_description: str | None,
+    agent_cards: dict[str, Any] | None = None,
 ) -> DelegationContext:
     """Prepare delegation context from agent response and task.
 
@@ -1033,7 +1074,8 @@ def _prepare_delegation_context(
         raise ValueError("No A2A agents configured for delegation")
 
     if isinstance(agent_response, AgentResponseProtocol) and agent_response.a2a_ids:
-        agent_id = agent_response.a2a_ids[0]
+        raw_agent_id = agent_response.a2a_ids[0]
+        agent_id = _resolve_agent_id(raw_agent_id, a2a_agents, agent_cards)
     else:
         agent_id = agent_ids[0]
 
@@ -1260,7 +1302,7 @@ def _delegate_to_a2a(
         ImportError: If a2a-sdk is not installed
     """
     ctx = _prepare_delegation_context(
-        self, agent_response, task, original_task_description
+        self, agent_response, task, original_task_description, agent_cards
     )
     state = _init_delegation_state(ctx, agent_cards)
     current_request = state.current_request
@@ -1615,7 +1657,7 @@ async def _adelegate_to_a2a(
 ) -> str:
     """Async version of _delegate_to_a2a."""
     ctx = _prepare_delegation_context(
-        self, agent_response, task, original_task_description
+        self, agent_response, task, original_task_description, agent_cards
     )
     state = _init_delegation_state(ctx, agent_cards)
     current_request = state.current_request
