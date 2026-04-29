@@ -565,12 +565,24 @@ class LiteAgent(FlowTrackable, BaseModel):
             ),
         )
         start_time = time.time()
+        def _sanitize_memory(text: str) -> str:
+            # Basic sanitization to reduce prompt-injection surface:
+            # strip backticks, braces, and control chars that LLM parsers treat
+            # as special, then hard-truncate to avoid context-overflow tricks.
+            text = text.replace("`", "").replace("{", "").replace("}", "")
+            # Remove null bytes and common injection delimiters
+            text = text.encode("utf-8", "ignore").decode("utf-8")
+            max_len = 512
+            if len(text) > max_len:
+                text = text[:max_len] + "…"
+            return text
+
         memory_block = ""
         try:
             matches = self._memory.recall(query, limit=10)
             if matches:
                 memory_block = "Relevant memories:\n" + "\n".join(
-                    f"- {m.record.content}" for m in matches
+                    f"- {_sanitize_memory(str(m.record.content))}" for m in matches
                 )
             if memory_block:
                 formatted = self.i18n.slice("memory").format(memory=memory_block)
